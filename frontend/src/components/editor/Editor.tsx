@@ -19,6 +19,7 @@ interface EditorProps {
   initialRevision: number;
   currentUserId: string;
   onTypingUsersChange: (names: string[]) => void;
+  readOnly?: boolean;
 }
 
 export function Editor({
@@ -28,6 +29,7 @@ export function Editor({
   initialRevision,
   currentUserId,
   onTypingUsersChange,
+  readOnly = false,
 }: EditorProps) {
   const [content, setContent] = useState(initialContent);
   const [cursors, setCursors] = useState<Record<string, RemoteCursor>>({});
@@ -117,6 +119,11 @@ export function Editor({
   );
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    // Belt-and-suspenders: the textarea is already `readOnly` below, so
+    // browsers won't fire onChange from user typing, but this guards
+    // against any programmatic change event still reaching the server.
+    if (readOnly) return;
+
     const value = e.target.value;
     setContent(value);
 
@@ -150,7 +157,7 @@ export function Editor({
   // Reposition remote cursor overlays whenever content or cursor map changes
   const [overlayPositions, setOverlayPositions] = useState <
     Array<RemoteCursor & { top: number; left: number }>
-    >([]);
+  >([]);
 
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -163,6 +170,11 @@ export function Editor({
 
   return (
     <div className="relative flex-1 overflow-hidden rounded-xl border border-line bg-paper-raised">
+      {readOnly && (
+        <div className="absolute right-3 top-3 z-10 rounded-full bg-paper px-2.5 py-1 text-[11px] font-medium text-ink-soft shadow-sm">
+          View only
+        </div>
+      )}
       <textarea
         ref={textareaRef}
         value={content}
@@ -170,9 +182,10 @@ export function Editor({
         onSelect={handleSelect}
         onClick={handleSelect}
         onKeyUp={handleSelect}
+        readOnly={readOnly}
         spellCheck={false}
         placeholder="Start writing. Everyone in this room sees it live…"
-        className="h-full w-full resize-none bg-transparent p-6 font-mono text-sm leading-7 text-ink outline-none"
+        className="h-full w-full resize-none bg-transparent p-6 font-mono text-sm leading-7 text-ink outline-none disabled:cursor-not-allowed"
       />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 overflow-hidden p-6">
         {overlayPositions.map((c) => (

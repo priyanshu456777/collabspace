@@ -125,3 +125,42 @@ exports.getActivity = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ success: true, activity });
 });
+// PATCH /api/rooms/:id/members/:userId/role   { role: 'editor' | 'viewer' }
+// Only the room owner can change another member's role. The owner's own
+// role can't be changed this way (ownership transfer is a separate,
+// more sensitive operation this app doesn't support yet).
+exports.updateMemberRole = catchAsync(async (req, res, next) => {
+  const { role } = req.body;
+  const { id: roomId, userId } = req.params;
+
+  if (!['editor', 'viewer'].includes(role)) {
+    return next(new AppError("Role must be 'editor' or 'viewer'.", 400));
+  }
+
+  const room = await Room.findById(roomId);
+  if (!room) return next(new AppError('Room not found.', 404));
+
+  if (!room.owner.equals(req.user._id)) {
+    return next(new AppError('Only the room owner can change member roles.', 403));
+  }
+
+  if (room.owner.equals(userId)) {
+    return next(new AppError("The owner's role can't be changed.", 400));
+  }
+
+  const member = room.members.find((m) => m.user.equals(userId));
+  if (!member) return next(new AppError('That user is not a member of this room.', 404));
+
+  member.role = role;
+  await room.save();
+
+  await Activity.create({
+    room: room._id,
+    user: req.user._id,
+    type: 'role_changed',
+  });
+
+  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor isOnline');
+
+  res.status(200).json({ success: true, room: populated });
+});

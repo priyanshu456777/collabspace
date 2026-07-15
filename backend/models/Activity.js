@@ -15,7 +15,7 @@ const ActivitySchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['join', 'leave', 'edit', 'room_created', 'conflict_resolved'],
+      enum: ['join', 'leave', 'edit', 'room_created', 'conflict_resolved', 'role_changed'],
       required: true,
     },
     meta: {

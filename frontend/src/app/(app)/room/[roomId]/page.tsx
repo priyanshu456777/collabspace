@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Download, History, Activity as ActivityIcon, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Download, History, Activity as ActivityIcon, Copy, Check, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { getSocket } from '@/lib/socket';
@@ -11,10 +11,11 @@ import { Editor } from '@/components/editor/Editor';
 import { PresenceBar } from '@/components/editor/PresenceBar';
 import { ActivityFeed } from '@/components/editor/ActivityFeed';
 import { VersionHistoryPanel } from '@/components/editor/VersionHistoryPanel';
+import { MembersPanel } from '@/components/editor/MembersPanel';
 import { Button } from '@/components/ui/Button';
 import type { PresenceUser, ActivityItem, Room } from '@/types';
 
-type SidePanel = 'activity' | 'history' | null;
+type SidePanel = 'activity' | 'history' | 'members' | null;
 
 export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
@@ -72,11 +73,15 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     function handleConflict(payload: { message: string }) {
       showToast(payload.message, 'info');
     }
+    function handleEditRejected(payload: { message: string }) {
+      showToast(payload.message, 'error');
+    }
 
     socket.on('presence:list', handlePresenceList);
     socket.on('presence:joined', handleJoined);
     socket.on('presence:left', handleLeft);
     socket.on('doc:conflict-resolved', handleConflict);
+    socket.on('doc:edit-rejected', handleEditRejected);
 
     return () => {
       socket.emit('room:leave', { roomId });
@@ -84,6 +89,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
       socket.off('presence:joined', handleJoined);
       socket.off('presence:left', handleLeft);
       socket.off('doc:conflict-resolved', handleConflict);
+      socket.off('doc:edit-rejected', handleEditRejected);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, user]);
@@ -121,6 +127,9 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
     );
   }
 
+  const myMembership = room?.members.find((m) => m.user._id === user.id);
+  const isViewer = myMembership?.role === 'viewer';
+
   return (
     <div className="flex h-screen flex-col bg-paper">
       <header className="flex items-center justify-between border-b border-line bg-paper-raised px-6 py-3.5">
@@ -143,6 +152,9 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
         <PresenceBar presence={presence} typingUsers={typingNames} />
 
         <div className="flex items-center gap-1.5">
+          <Button variant="ghost" size="sm" onClick={() => setPanel(panel === 'members' ? null : 'members')}>
+            <Users className="h-4 w-4" /> Members
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setPanel(panel === 'activity' ? null : 'activity')}>
             <ActivityIcon className="h-4 w-4" /> Activity
           </Button>
@@ -165,13 +177,14 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
           initialRevision={docState.revision}
           currentUserId={user.id}
           onTypingUsersChange={setTypingNames}
+          readOnly={isViewer}
         />
 
         {panel && (
           <aside className="w-72 shrink-0 overflow-hidden rounded-xl border border-line bg-paper-raised">
             <div className="border-b border-line px-4 py-3">
               <p className="text-sm font-medium text-ink">
-                {panel === 'activity' ? 'Activity' : 'Version history'}
+                {panel === 'activity' ? 'Activity' : panel === 'history' ? 'Version history' : 'Members'}
               </p>
             </div>
             <div className="h-[calc(100%-45px)]">
@@ -181,6 +194,9 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                   roomId={roomId}
                   onRestored={(content) => setDocState((prev) => (prev ? { ...prev, content } : prev))}
                 />
+              )}
+              {panel === 'members' && room && (
+                <MembersPanel room={room} currentUserId={user.id} onRoleChanged={setRoom} />
               )}
             </div>
           </aside>

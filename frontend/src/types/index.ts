@@ -53,7 +53,7 @@ export interface ActivityItem {
   _id: string;
   room: string;
   user: { _id: string; name: string; avatarColor: string };
-  type: 'join' | 'leave' | 'edit' | 'room_created' | 'conflict_resolved';
+  type: 'join' | 'leave' | 'edit' | 'room_created' | 'conflict_resolved' | 'role_changed';
   createdAt: string;
 }
 

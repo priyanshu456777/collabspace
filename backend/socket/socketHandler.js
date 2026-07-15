@@ -8,7 +8,7 @@ const Document = require('../models/Document');
 const DocumentVersion = require('../models/DocumentVersion');
 const Activity = require('../models/Activity');
 
-// roomId -> Map(socketId -> { userId, name, avatarColor, cursor })
+// roomId -> Map(socketId -> { userId, name, avatarColor, cursor})
 const presence = new Map();
 
 // roomId -> pending autosave timer
@@ -187,6 +187,21 @@ function initSocket(io) {
     // Real-time text edits with conflict resolution
     socket.on('doc:edit', async ({ roomId, baseContent, newContent, baseRevision }) => {
       try {
+        // Enforce role-based access before touching the document at all.
+        // Viewers can watch a room live (presence, cursors, updates) but
+        // can't submit edits. We check current membership on every edit
+        // (rather than a cached value from room:join) so a role change
+        // made mid-session takes effect immediately, without requiring
+        // the viewer to reconnect.
+        const room = await Room.findById(roomId);
+        const member = room?.members.find((m) => m.user.equals(socket.user._id));
+        if (!member || member.role === 'viewer') {
+          socket.emit('doc:edit-rejected', {
+            message: 'You have view-only access to this document.',
+          });
+          return;
+        }
+
         const document = await Document.findOne({ room: roomId });
         if (!document) return;
 
