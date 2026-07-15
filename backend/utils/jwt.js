@@ -17,17 +17,33 @@ function verifyToken(token) {
  */
 function setTokenCookie(res, token) {
   const days = Number(process.env.JWT_COOKIE_EXPIRES_DAYS || 7);
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isProd,
+    // In production the frontend (Vercel) and backend (Render) are on
+    // different domains, so this is a cross-site request from the
+    // browser's point of view. SameSite=Lax cookies are not sent on
+    // cross-site fetches, which silently breaks auth. SameSite=None allows
+    // the cookie to be sent cross-site, but browsers require `Secure` to
+    // be set whenever SameSite=None is used - which is already true here
+    // since isProd also implies HTTPS on both ends.
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: days * 24 * 60 * 60 * 1000,
     path: '/',
   });
 }
 
 function clearTokenCookie(res) {
-  res.clearCookie('token', { path: '/' });
+  const isProd = process.env.NODE_ENV === 'production';
+  // clearCookie must be called with the same path/sameSite/secure options
+  // used when the cookie was set, or the browser will treat it as a
+  // different cookie and silently ignore the clear.
+  res.clearCookie('token', {
+    path: '/',
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
+  });
 }
 
 module.exports = { signToken, verifyToken, setTokenCookie, clearTokenCookie };
