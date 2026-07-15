@@ -10,6 +10,7 @@ const labels: Record<ActivityItem['type'], string> = {
   edit: 'edited the document',
   room_created: 'created this room',
   conflict_resolved: 'had overlapping edits auto-merged',
+  role_changed: 'changed a member role',
 };
 
 export function ActivityFeed({ activity }: { activity: ActivityItem[] }) {
