@@ -2,8 +2,10 @@ const crypto = require('crypto');
 const Room = require('../models/Room');
 const Document = require('../models/Document');
 const Activity = require('../models/Activity');
+const DocumentVersion = require('../models/DocumentVersion');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
+const { notifyUser } = require('../utils/notify');
 
 function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex'); // e.g. "a1b2c3d4"
@@ -44,7 +46,7 @@ exports.createRoom = catchAsync(async (req, res, next) => {
 
   await Activity.create({ room: room._id, user: req.user._id, type: 'room_created' });
 
-  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor isOnline');
+  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor avatarImage isOnline');
 
   res.status(201).json({ success: true, room: populated });
 });
@@ -58,7 +60,7 @@ exports.getMyRooms = catchAsync(async (req, res) => {
   }
 
   const rooms = await Room.find(query)
-    .populate('members.user', 'name email avatarColor isOnline')
+    .populate('members.user', 'name email avatarColor avatarImage isOnline')
     .populate('owner', 'name email')
     .sort({ updatedAt: -1 });
 
@@ -68,7 +70,7 @@ exports.getMyRooms = catchAsync(async (req, res) => {
 // GET /api/rooms/:id
 exports.getRoom = catchAsync(async (req, res, next) => {
   const room = await Room.findById(req.params.id)
-    .populate('members.user', 'name email avatarColor isOnline lastSeen')
+    .populate('members.user', 'name email avatarColor avatarImage isOnline lastSeen')
     .populate('owner', 'name email')
     .populate('document');
 
@@ -93,9 +95,18 @@ exports.joinRoom = catchAsync(async (req, res, next) => {
     room.members.push({ user: req.user._id, role: 'editor' });
     await room.save();
     await Activity.create({ room: room._id, user: req.user._id, type: 'join' });
+
+    // Fire-and-forget: the join itself shouldn't wait on this.
+    notifyUser({
+      recipient: room.owner,
+      actor: req.user._id,
+      room: room._id,
+      type: 'user_joined',
+      message: `${req.user.name} joined "${room.name}".`,
+    }).catch((err) => console.error('[notify] user_joined failed:', err.message));
   }
 
-  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor isOnline');
+  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor avatarImage isOnline');
 
   res.status(200).json({ success: true, room: populated });
 });
@@ -119,12 +130,89 @@ exports.leaveRoom = catchAsync(async (req, res, next) => {
 // GET /api/rooms/:id/activity
 exports.getActivity = catchAsync(async (req, res, next) => {
   const activity = await Activity.find({ room: req.params.id })
-    .populate('user', 'name avatarColor')
+    .populate('user', 'name avatarColor avatarImage')
     .sort({ createdAt: -1 })
     .limit(50);
 
   res.status(200).json({ success: true, activity });
 });
+// GET /api/rooms/analytics/summary
+// Powers the dashboard's mini analytics cards. Everything here is derived
+// from data already collected for other features (rooms, versions,
+// activity) - no new schema needed.
+exports.getAnalytics = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+
+  const myRooms = await Room.find({ 'members.user': userId }).select('_id name owner members');
+  const roomIds = myRooms.map((r) => r._id);
+  const ownedCount = myRooms.filter((r) => r.owner.equals(userId)).length;
+
+  const collaboratorIds = new Set();
+  myRooms.forEach((r) => {
+    r.members.forEach((m) => {
+      if (!m.user.equals(userId)) collaboratorIds.add(String(m.user));
+    });
+  });
+
+  // Last 7 days (UTC midnight-aligned, oldest first) so the trend chart
+  // always has a fixed, predictable x-axis regardless of activity gaps.
+  const days = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - i);
+    days.push(d);
+  }
+
+  const [totalEdits, versionCountsByRoom, rawTrend] = await Promise.all([
+    DocumentVersion.countDocuments({ editedBy: userId }),
+    roomIds.length
+      ? DocumentVersion.aggregate([
+          { $match: { room: { $in: roomIds } } },
+          { $group: { _id: '$room', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 1 },
+        ])
+      : Promise.resolve([]),
+    roomIds.length
+      ? Activity.aggregate([
+          { $match: { room: { $in: roomIds }, createdAt: { $gte: days[0] } } },
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              count: { $sum: 1 },
+            },
+          },
+        ])
+      : Promise.resolve([]),
+  ]);
+
+  let mostActiveRoom = null;
+  if (versionCountsByRoom.length > 0) {
+    const top = versionCountsByRoom[0];
+    const room = myRooms.find((r) => r._id.equals(top._id));
+    if (room) mostActiveRoom = { name: room.name, edits: top.count };
+  }
+
+  const trendMap = new Map(rawTrend.map((r) => [r._id, r.count]));
+  const activityTrend = days.map((d) => {
+    const key = d.toISOString().slice(0, 10);
+    return { date: key, count: trendMap.get(key) || 0 };
+  });
+
+  res.status(200).json({
+    success: true,
+    analytics: {
+      roomsCount: myRooms.length,
+      ownedCount,
+      collaboratorsCount: collaboratorIds.size,
+      totalEdits,
+      mostActiveRoom,
+      activityTrend,
+    },
+  });
+});
+
 // PATCH /api/rooms/:id/members/:userId/role   { role: 'editor' | 'viewer' }
 // Only the room owner can change another member's role. The owner's own
 // role can't be changed this way (ownership transfer is a separate,
@@ -160,7 +248,15 @@ exports.updateMemberRole = catchAsync(async (req, res, next) => {
     type: 'role_changed',
   });
 
-  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor isOnline');
+  notifyUser({
+    recipient: userId,
+    actor: req.user._id,
+    room: room._id,
+    type: 'role_changed',
+    message: `Your role in "${room.name}" was changed to ${role}.`,
+  }).catch((err) => console.error('[notify] role_changed failed:', err.message));
+
+  const populated = await Room.findById(room._id).populate('members.user', 'name email avatarColor avatarImage isOnline');
 
   res.status(200).json({ success: true, room: populated });
 });

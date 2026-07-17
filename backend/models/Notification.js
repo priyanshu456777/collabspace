@@ -18,7 +18,7 @@ const NotificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['room_invite', 'user_joined', 'mention', 'conflict_resolved'],
+      enum: ['room_invite', 'user_joined', 'mention', 'conflict_resolved', 'role_changed'],
       required: true,
     },
     message: {

@@ -1,31 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { api } from '@/lib/api';
+import { useEffect, useRef } from 'react';
 import { timeAgo } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
+import type { NotificationItem } from '@/types';
 
-interface NotificationItem {
-  _id: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  actor?: { name: string; avatarColor: string };
+interface NotificationPanelProps {
+  notifications: NotificationItem[];
+  loading: boolean;
+  onClose: () => void;
+  onRead: () => void;
 }
 
-export function NotificationPanel({ onClose, onRead }: { onClose: () => void; onRead: () => void }) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export function NotificationPanel({ notifications, loading, onClose, onRead }: NotificationPanelProps) {
   const ref = useRef<HTMLDivElement>(null);
 
+  // Mark everything as read the moment the panel is opened, same as before.
   useEffect(() => {
-    api
-      .get<{ notifications: NotificationItem[] }>('/notifications')
-      .then((data) => setNotifications(data.notifications))
-      .finally(() => setLoading(false));
-
-    api.patch('/notifications/read').then(onRead).catch(() => {});
-  }, [onRead]);
+    onRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -50,7 +44,7 @@ export function NotificationPanel({ onClose, onRead }: { onClose: () => void; on
         )}
         {notifications.map((n) => (
           <div key={n._id} className="flex gap-3 border-b border-line/60 px-4 py-3 last:border-0">
-            {n.actor && <Avatar name={n.actor.name} color={n.actor.avatarColor} size="xs" />}
+            {n.actor && <Avatar name={n.actor.name} color={n.actor.avatarColor} imageUrl={n.actor.avatarImage} size="xs" />}
             <div className="flex-1">
               <p className="text-xs text-ink">{n.message}</p>
               <p className="mt-0.5 text-[10px] text-ink-soft">{timeAgo(n.createdAt)}</p>

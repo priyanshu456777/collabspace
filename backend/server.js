@@ -9,7 +9,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const { Server } = require('socket.io');
 
 const connectDB = require('./config/db');
-const initSocket = require('./socket/socketHandler');
+const { initSocket } = require('./socket/socketHandler');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/authRoutes');

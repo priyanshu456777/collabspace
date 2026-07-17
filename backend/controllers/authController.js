@@ -67,11 +67,25 @@ exports.getMe = catchAsync(async (req, res) => {
 
 // PATCH /api/auth/profile
 exports.updateProfile = catchAsync(async (req, res, next) => {
-  const { name, bio, avatarColor } = req.body;
+  const { name, bio, avatarColor, avatarImage } = req.body;
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (bio !== undefined) updates.bio = bio;
   if (avatarColor !== undefined) updates.avatarColor = avatarColor;
+
+  if (avatarImage !== undefined) {
+    // null/'' clears the picture (falls back to the initials avatar).
+    // Otherwise it must be an image data URI produced by the upload
+    // widget on the client - reject anything else outright rather than
+    // storing arbitrary strings in an image field.
+    if (avatarImage === null || avatarImage === '') {
+      updates.avatarImage = null;
+    } else if (typeof avatarImage === 'string' && /^data:image\/(png|jpeg|jpg|webp|gif);base64,/.test(avatarImage)) {
+      updates.avatarImage = avatarImage;
+    } else {
+      return next(new AppError('Profile picture must be a valid image upload.', 400));
+    }
+  }
 
   const user = await User.findByIdAndUpdate(req.user._id, updates, {
     new: true,

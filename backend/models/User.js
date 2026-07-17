@@ -39,6 +39,17 @@ const UserSchema = new mongoose.Schema(
       maxlength: 280,
       default: '',
     },
+    // Optional real profile picture, stored inline as a base64 data URI
+    // (e.g. "data:image/png;base64,...") rather than in external object
+    // storage - keeps deployment simple with no extra service to
+    // configure. The maxlength keeps this to a small, resized image
+    // (client-side resize happens before upload); falls back to the
+    // initials/avatarColor avatar everywhere when null.
+    avatarImage: {
+      type: String,
+      default: null,
+      maxlength: [400000, 'Profile picture is too large.'],
+    },
     role: {
       type: String,
       enum: ['user', 'admin'],
@@ -73,6 +84,7 @@ UserSchema.methods.toSafeObject = function () {
     name: this.name,
     email: this.email,
     avatarColor: this.avatarColor,
+    avatarImage: this.avatarImage || null,
     bio: this.bio,
     role: this.role,
     isOnline: this.isOnline,

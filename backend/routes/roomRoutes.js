@@ -6,6 +6,7 @@ router.use(protect); // every room route requires authentication
 router.post('/', room.createRoom);
 router.get('/', room.getMyRooms);
 router.post('/join', room.joinRoom);
+router.get('/analytics/summary', room.getAnalytics); // must stay above /:id
 router.get('/:id', room.getRoom);
 router.post('/:id/leave', room.leaveRoom);
 router.get('/:id/activity', room.getActivity);

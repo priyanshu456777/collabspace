@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { RoomCard } from '@/components/dashboard/RoomCard';
+import { AnalyticsCards } from '@/components/dashboard/AnalyticsCards';
 import { RoomCardSkeleton } from '@/components/ui/Skeleton';
 import { CreateRoomModal } from '@/components/dashboard/CreateRoomModal';
 import { JoinRoomModal } from '@/components/dashboard/JoinRoomModal';
@@ -56,6 +57,8 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      <AnalyticsCards />
 
       <div className="relative mb-6 max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />

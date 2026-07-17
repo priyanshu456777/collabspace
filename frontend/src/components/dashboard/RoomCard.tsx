@@ -28,6 +28,7 @@ export function RoomCard({ room }: { room: Room }) {
               key={typeof m.user === 'string' ? m.user : m.user._id}
               name={typeof m.user === 'string' ? '?' : m.user.name}
               color={typeof m.user === 'string' ? undefined : m.user.avatarColor}
+              imageUrl={typeof m.user === 'string' ? undefined : m.user.avatarImage}
               size="xs"
               className="ring-2 ring-paper-raised"
             />

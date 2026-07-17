@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   avatarColor: string;
+  avatarImage: string | null;
   bio: string;
   role: 'user' | 'admin';
   isOnline: boolean;
@@ -20,6 +21,7 @@ export interface PopulatedUserRef {
   name: string;
   email?: string;
   avatarColor: string;
+  avatarImage?: string | null;
   isOnline?: boolean;
   lastSeen?: string;
 }
@@ -52,7 +54,7 @@ export interface Room {
 export interface ActivityItem {
   _id: string;
   room: string;
-  user: { _id: string; name: string; avatarColor: string };
+  user: { _id: string; name: string; avatarColor: string; avatarImage?: string | null };
   type: 'join' | 'leave' | 'edit' | 'room_created' | 'conflict_resolved' | 'role_changed';
   createdAt: string;
 }
@@ -61,9 +63,27 @@ export interface DocumentVersion {
   _id: string;
   content: string;
   revision: number;
-  editedBy?: { _id: string; name: string; avatarColor: string };
+  editedBy?: { _id: string; name: string; avatarColor: string; avatarImage?: string | null };
   reason: 'autosave' | 'conflict-merge' | 'manual';
   createdAt: string;
+}
+
+export interface NotificationItem {
+  _id: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  type: 'room_invite' | 'user_joined' | 'mention' | 'conflict_resolved' | 'role_changed';
+  actor?: { name: string; avatarColor: string; avatarImage?: string | null };
+}
+
+export interface Analytics {
+  roomsCount: number;
+  ownedCount: number;
+  collaboratorsCount: number;
+  totalEdits: number;
+  mostActiveRoom: { name: string; edits: number } | null;
+  activityTrend: { date: string; count: number }[];
 }
 
 export interface PresenceUser {

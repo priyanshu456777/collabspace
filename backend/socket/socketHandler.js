@@ -14,6 +14,23 @@ const presence = new Map();
 // roomId -> pending autosave timer
 const autosaveTimers = new Map();
 
+// Set once initSocket runs (at server startup, before any request can come
+// in), so it's always populated by the time emitToUser is ever called from
+// a controller.
+let ioInstance = null;
+
+/**
+ * Pushes an event straight to one user's browser tab(s), regardless of
+ * which room (if any) they currently have open. Every authenticated socket
+ * joins a personal `user:<id>` room on connect (see io.on('connection')
+ * below) specifically so this works app-wide, not just inside a shared
+ * document room.
+ */
+function emitToUser(userId, event, payload) {
+  if (!ioInstance || !userId) return;
+  ioInstance.to(`user:${userId}`).emit(event, payload);
+}
+
 function getRoomPresence(roomId) {
   if (!presence.has(roomId)) presence.set(roomId, new Map());
   return presence.get(roomId);
@@ -84,6 +101,8 @@ function mergeEdit({ serverContent, serverRevision, clientBaseContent, clientNew
 }
 
 function initSocket(io) {
+  ioInstance = io;
+
   // Authenticate the socket handshake using the same JWT cookie as the REST API
   io.use(async (socket, next) => {
     try {
@@ -107,6 +126,10 @@ function initSocket(io) {
 
   io.on('connection', (socket) => {
     let currentRoomId = null;
+
+    // Personal room for direct, cross-page pushes (e.g. notifications) that
+    // aren't tied to any single document room the user might not have open.
+    socket.join(`user:${socket.user._id}`);
 
     socket.on('room:join', async ({ roomId }, ack) => {
       try {
@@ -317,4 +340,4 @@ function initSocket(io) {
   });
 }
 
-module.exports = initSocket;
+module.exports = { initSocket, emitToUser };

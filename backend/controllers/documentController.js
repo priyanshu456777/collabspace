@@ -17,7 +17,7 @@ exports.getVersionHistory = catchAsync(async (req, res) => {
   await assertMembership(req.params.roomId, req.user._id);
 
   const versions = await DocumentVersion.find({ room: req.params.roomId })
-    .populate('editedBy', 'name avatarColor')
+    .populate('editedBy', 'name avatarColor avatarImage')
     .sort({ revision: -1 })
     .limit(30);
 

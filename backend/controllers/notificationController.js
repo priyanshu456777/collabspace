@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 
 exports.getNotifications = catchAsync(async (req, res) => {
   const notifications = await Notification.find({ recipient: req.user._id })
-    .populate('actor', 'name avatarColor')
+    .populate('actor', 'name avatarColor avatarImage')
     .sort({ createdAt: -1 })
     .limit(50);
 

@@ -22,7 +22,7 @@ export function ActivityFeed({ activity }: { activity: ActivityItem[] }) {
     <ul className="space-y-3 overflow-y-auto px-4 py-3">
       {activity.map((item) => (
         <li key={item._id} className="flex gap-2.5">
-          <Avatar name={item.user.name} color={item.user.avatarColor} size="xs" />
+          <Avatar name={item.user.name} color={item.user.avatarColor} imageUrl={item.user.avatarImage} size="xs" />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-ink">
               <span className="font-medium">{item.user.name}</span> {labels[item.type]}

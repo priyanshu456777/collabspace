@@ -34,3 +34,44 @@ export function debounce<Args extends unknown[]>(fn: (...args: Args) => void, de
     timer = setTimeout(() => fn(...args), delay);
   };
 }
+
+/**
+ * Reads an image file, downscales it to fit within maxDimension x
+ * maxDimension (preserving aspect ratio), and returns a compressed JPEG
+ * data URI. Resizing client-side before upload keeps profile pictures
+ * small enough to store inline on the User document instead of needing
+ * external object storage.
+ */
+export function resizeImageToDataUrl(file: File, maxDimension = 256, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Please choose an image file.'));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('That file is not a valid image.'));
+      img.onload = () => {
+        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Image processing is not supported in this browser.'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}

@@ -3,6 +3,7 @@ import { cn, initials } from '@/lib/utils';
 interface AvatarProps {
   name: string;
   color?: string;
+  imageUrl?: string | null;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   online?: boolean;
   className?: string;
@@ -15,16 +16,26 @@ const sizes: Record<string, string> = {
   lg: 'h-14 w-14 text-base',
 };
 
-export function Avatar({ name, color = '#6366F1', size = 'md', online, className }: AvatarProps) {
+export function Avatar({ name, color = '#6366F1', imageUrl, size = 'md', online, className }: AvatarProps) {
   return (
     <div className={cn('relative inline-flex shrink-0', className)}>
-      <div
-        className={cn('flex items-center justify-center rounded-full font-semibold text-white', sizes[size])}
-        style={{ backgroundColor: color }}
-        title={name}
-      >
-        {initials(name)}
-      </div>
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- base64 data URIs aren't compatible with next/image's optimizer
+        <img
+          src={imageUrl}
+          alt={name}
+          title={name}
+          className={cn('rounded-full object-cover', sizes[size])}
+        />
+      ) : (
+        <div
+          className={cn('flex items-center justify-center rounded-full font-semibold text-white', sizes[size])}
+          style={{ backgroundColor: color }}
+          title={name}
+        >
+          {initials(name)}
+        </div>
+      )}
       {online !== undefined && (
         <span
           className={cn(

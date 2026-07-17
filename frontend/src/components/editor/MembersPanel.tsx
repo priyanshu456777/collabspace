@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { Avatar } from '@/components/ui/Avatar';
 import type { Room } from '@/types';
 
 interface MembersPanelProps {
@@ -42,12 +43,7 @@ export function MembersPanel({ room, currentUserId, onRoleChanged }: MembersPane
               className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-paper"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium text-white"
-                  style={{ backgroundColor: m.user.avatarColor }}
-                >
-                  {m.user.name.slice(0, 1).toUpperCase()}
-                </span>
+                <Avatar name={m.user.name} color={m.user.avatarColor} imageUrl={m.user.avatarImage} size="xs" />
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink">
                     {m.user.name}
