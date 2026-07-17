@@ -98,7 +98,7 @@ export function Navbar() {
         onClick={() => setPaletteOpen(true)}
         className="hidden items-center gap-2 rounded-md border border-line bg-paper px-3 py-1.5 text-xs text-ink-soft hover:border-brass hover:text-ink md:flex"
       >
-        Search rooms…
+        Jump to room…
         <kbd className="ml-4 rounded border border-line bg-paper-raised px-1.5 py-0.5 text-[10px] font-medium">
           Ctrl K
         </kbd>
